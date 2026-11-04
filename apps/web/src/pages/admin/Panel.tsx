@@ -29,10 +29,10 @@ export default function Panel() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi titulo="Total por cobrar" valor={pesos(data.porCobrar)} nota="Cuotas y actividades pendientes" />
-        <Kpi titulo="Deuda vencida" valor={pesos(data.vencido)} tono={data.vencido > 0 ? "mal" : "bien"} nota="Con fecha de vencimiento pasada" />
-        <Kpi titulo="Cobrado este mes" valor={pesos(data.cobradoMes)} tono="bien" />
-        <Kpi titulo={`Resultado ${data.ciclo}`} valor={pesos(data.resultadoAnio)} tono={data.resultadoAnio >= 0 ? "bien" : "mal"} nota={`Ingresos ${pesos(data.ingresosAnio)} − egresos ${pesos(data.egresosAnio)}`} />
+        <Kpi acento="celeste" icono="cobranza" titulo="Total por cobrar" valor={pesos(data.porCobrar)} nota="Cuotas y actividades pendientes" />
+        <Kpi acento="peligro" icono="alerta" titulo="Deuda vencida" valor={pesos(data.vencido)} tono={data.vencido > 0 ? "mal" : "bien"} nota="Con fecha de vencimiento pasada" />
+        <Kpi acento="ok" icono="ok" titulo="Cobrado este mes" valor={pesos(data.cobradoMes)} tono="bien" />
+        <Kpi acento="oro" icono="contabilidad" titulo={`Resultado ${data.ciclo}`} valor={pesos(data.resultadoAnio)} tono={data.resultadoAnio >= 0 ? "bien" : "mal"} nota={`Ingresos ${pesos(data.ingresosAnio)} − egresos ${pesos(data.egresosAnio)}`} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">

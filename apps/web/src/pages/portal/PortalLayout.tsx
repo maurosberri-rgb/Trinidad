@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { api, mensajeError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { Campo, Cargando, ErrorBox, Icon, Logo, Modal, useCarga } from "../../components/ui";
+import { CambiarTema, Campo, Cargando, ErrorBox, Icon, Logo, Modal, useCarga } from "../../components/ui";
 
 export interface CargoF {
   id: string; numero: string; descripcion: string; periodo: string; vencimiento: string; importe: number; descuento: number; bruto: number;
@@ -27,17 +27,18 @@ export default function PortalLayout() {
   const { data, error, recargar } = useCarga(() => api<DatosFamilia>("/familia/me"));
   const [avisoClave, setAvisoClave] = useState(true);
 
-  const link = ({ isActive }: { isActive: boolean }) => `whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${isActive ? "bg-marca-claro text-marca" : "text-suave hover:text-tinta"}`;
+  const link = ({ isActive }: { isActive: boolean }) => `whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${isActive ? "bg-marca text-white" : "text-suave hover:bg-marca-claro hover:text-marca"}`;
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-borde bg-sup/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-borde bg-sup/95 backdrop-blur"><span className="franja block h-1" aria-hidden />
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
           <Logo />
           <nav className="flex items-center gap-1">
             <NavLink to="/familia" end className={link}>Mis cuotas</NavLink>
             <NavLink to="/familia/historial" className={link}>Historial</NavLink>
-            <button className="ml-1 rounded-lg p-2 text-tenue hover:bg-fondo hover:text-tinta" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={() => { salir(); nav("/"); }}><Icon name="salir" /></button>
+            <CambiarTema className="ml-1" />
+            <button className="rounded-lg p-2 text-tenue hover:bg-fondo hover:text-tinta" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={() => { salir(); nav("/"); }}><Icon name="salir" /></button>
           </nav>
         </div>
       </header>

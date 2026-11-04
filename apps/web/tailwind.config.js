@@ -5,12 +5,14 @@ const t = (n) => `rgb(var(--c-${n}) / <alpha-value>)`;
 
 // Paleta sobria: azul tinta como color de marca, dorado suave como acento y grises neutros.
 export default {
+  darkMode: ["selector", '[data-tema="oscuro"]'],
   content: [`${aqui}index.html`, `${aqui}src/**/*.{ts,tsx}`],
   theme: {
     extend: {
       colors: {
         fondo: t("fondo"), sup: t("sup"), borde: t("borde"), tinta: t("tinta"), suave: t("suave"), tenue: t("tenue"),
         marca: { DEFAULT: t("marca"), oscuro: t("marca-oscuro"), claro: t("marca-claro") },
+        celeste: t("celeste"),
         oro: { DEFAULT: t("oro"), claro: t("oro-claro") },
         ok: { DEFAULT: t("ok"), claro: t("ok-claro") },
         aviso: { DEFAULT: t("aviso"), claro: t("aviso-claro") },

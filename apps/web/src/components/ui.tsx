@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { mensajeError } from "../lib/api";
+import { useTema } from "../lib/tema";
 
 // ---------- Íconos de línea ----------
 const RUTAS: Record<string, ReactNode> = {
@@ -16,6 +17,8 @@ const RUTAS: Record<string, ReactNode> = {
   ojo: <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>,
   ojoNo: <><path d="M3 3l18 18" /><path d="M10.6 5.1A9.7 9.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4.2-1" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>,
   subir: <><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v4h16v-4" /></>,
+  sol: <><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4" /></>,
+  luna: <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" />,
   ok: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   cerrar: <path d="M6 6l12 12M18 6 6 18" />,
   mas: <path d="M12 5v14M5 12h14" />,
@@ -41,7 +44,7 @@ export function Icon({ name, size = 18, className = "" }: { name: keyof typeof R
 // ---------- Marca ----------
 /** Escudo del colegio. El JPG tiene fondo blanco: `mix-blend-multiply` lo hace desaparecer sobre fondos claros. */
 export function Escudo({ className = "h-10" }: { className?: string }) {
-  return <img src="/logo.jpg" alt="Escudo del Instituto La Sma. Trinidad" className={`w-auto select-none mix-blend-multiply ${className}`} draggable={false} />;
+  return <img src="/logo.jpg" alt="Escudo del Instituto La Sma. Trinidad" className={`escudo w-auto select-none mix-blend-multiply ${className}`} draggable={false} />;
 }
 
 /** Marca compacta (escudo + nombre) para encabezados y menú. */
@@ -93,7 +96,7 @@ export function Modal({ titulo, onClose, children, ancho = "max-w-lg" }: { titul
     return () => { window.removeEventListener("keydown", f); document.body.style.overflow = previo; };
   }, [onClose]);
   return (
-    <div className="no-imprimir fixed inset-0 z-50 flex items-end justify-center bg-tinta/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="no-imprimir fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div role="dialog" aria-modal="true" aria-label={titulo} className={`card flex max-h-[92vh] w-full ${ancho} flex-col rounded-b-none shadow-flota sm:rounded-b-2xl`}>
         <header className="flex items-center justify-between border-b border-borde px-5 py-4">
           <h2 className="text-base">{titulo}</h2>
@@ -109,6 +112,7 @@ export function Cabecera({ titulo, subtitulo, children }: { titulo: string; subt
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
+        <span className="franja mb-3 block h-1 w-14 rounded-full" aria-hidden />
         <h1 className="text-2xl">{titulo}</h1>
         {subtitulo && <p className="mt-1 text-sm text-suave">{subtitulo}</p>}
       </div>
@@ -130,14 +134,39 @@ export function Cargando() {
   return <p className="px-6 py-12 text-center text-sm text-tenue">Cargando…</p>;
 }
 
-export function Kpi({ titulo, valor, nota, tono = "normal" }: { titulo: string; valor: string; nota?: string; tono?: "normal" | "bien" | "mal" | "aviso" }) {
+const ACENTOS = {
+  marca: { chip: "bg-marca-claro text-marca", borde: "border-t-marca" },
+  celeste: { chip: "bg-celeste/15 text-celeste", borde: "border-t-celeste" },
+  ok: { chip: "bg-ok-claro text-ok", borde: "border-t-ok" },
+  oro: { chip: "bg-oro-claro text-aviso", borde: "border-t-oro" },
+  peligro: { chip: "bg-peligro-claro text-peligro", borde: "border-t-peligro" },
+} as const;
+export type Acento = keyof typeof ACENTOS;
+
+export function Kpi({ titulo, valor, nota, tono = "normal", acento = "marca", icono }: { titulo: string; valor: string; nota?: string; tono?: "normal" | "bien" | "mal" | "aviso"; acento?: Acento; icono?: string }) {
   const color = { normal: "text-tinta", bien: "text-ok", mal: "text-peligro", aviso: "text-aviso" }[tono];
+  const a = ACENTOS[acento];
   return (
-    <div className="card p-5">
-      <p className="text-xs font-medium text-tenue">{titulo}</p>
+    <div className={`card border-t-4 p-5 ${a.borde}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-medium text-tenue">{titulo}</p>
+        {icono && <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${a.chip}`}><Icon name={icono} size={18} /></span>}
+      </div>
       <p className={`mt-2 text-2xl font-semibold tabular-nums ${color}`}>{valor}</p>
       {nota && <p className="mt-1 text-xs text-tenue">{nota}</p>}
     </div>
+  );
+}
+
+/** Botón de modo claro/oscuro. */
+export function CambiarTema({ className = "" }: { className?: string }) {
+  const { tema, alternar } = useTema();
+  const oscuro = tema === "oscuro";
+  return (
+    <button type="button" onClick={alternar} aria-label={oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro"} title={oscuro ? "Modo claro" : "Modo oscuro"}
+      className={`no-imprimir rounded-xl p-2 text-suave transition hover:bg-marca-claro hover:text-marca ${className}`}>
+      <Icon name={oscuro ? "sol" : "luna"} size={18} />
+    </button>
   );
 }
 
@@ -160,7 +189,7 @@ export function Pestanas<T extends string>({ valor, onChange, opciones }: { valo
     <div className="no-imprimir mb-5 flex gap-1 overflow-x-auto rounded-xl bg-borde/50 p-1" role="tablist">
       {opciones.map((o) => (
         <button key={o.id} type="button" role="tab" aria-selected={valor === o.id} onClick={() => onChange(o.id)}
-          className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${valor === o.id ? "bg-sup text-tinta shadow-suave" : "text-suave hover:text-tinta"}`}>
+          className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${valor === o.id ? "bg-marca text-white shadow-suave" : "text-suave hover:text-tinta"}`}>
           {o.texto}
         </button>
       ))}

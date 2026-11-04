@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { mensajeError } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { Campo, ErrorBox, Escudo, Icon } from "../components/ui";
+import { CambiarTema, Campo, ErrorBox, Escudo, Icon } from "../components/ui";
 
 type Modo = "familia" | "colegio";
 
@@ -45,8 +45,8 @@ export default function Ingresar() {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.9fr_1fr]">
       {/* Arte de la marca (solo en pantallas anchas) */}
-      <aside className="relative hidden overflow-hidden bg-[#eef4fd] lg:sticky lg:top-0 lg:block lg:h-screen">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-[#eef4fd] to-[#d6e5fb]" aria-hidden />
+      <aside className="relative hidden overflow-hidden bg-[#eef4fd] dark:bg-[#0b1220] lg:sticky lg:top-0 lg:block lg:h-screen">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-[#eef4fd] to-[#d6e5fb] dark:from-[#0d1526] dark:via-[#0b1220] dark:to-[#122244]" aria-hidden />
         {/* Círculos suaves con los colores del escudo */}
         <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-[#00a0f0]/10" aria-hidden />
         <div className="absolute -bottom-32 -right-20 h-[520px] w-[520px] rounded-full bg-marca/[0.07]" aria-hidden />
@@ -63,15 +63,16 @@ export default function Ingresar() {
       </aside>
 
       <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-8">
+        <CambiarTema className="absolute right-4 top-4" />
         <div className="w-full max-w-sm">
           {/* En pantallas angostas no hay panel de arte: el escudo se muestra acá */}
           <div className="mb-6 flex flex-col items-center text-center lg:hidden"><Escudo className="h-28" /></div>
           <p className="mb-6 hidden text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-tenue lg:block">Instituto La Sma. Trinidad · Hernando</p>
-          <div className="card p-6 shadow-flota sm:p-8">
+          <div className="card relative overflow-hidden p-6 pt-8 shadow-flota sm:p-8 sm:pt-10"><span className="franja absolute inset-x-0 top-0 block h-1.5" aria-hidden />
             <div className="mb-6 flex rounded-xl bg-fondo p-1" role="tablist">
               {([["familia", "Familias"], ["colegio", "Colegio"]] as const).map(([m, t]) => (
                 <button key={m} type="button" role="tab" aria-selected={modo === m} onClick={() => cambiar(m)}
-                  className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${modo === m ? "bg-sup text-tinta shadow-suave" : "text-tenue hover:text-suave"}`}>
+                  className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${modo === m ? "bg-marca text-white shadow-suave" : "text-tenue hover:text-suave"}`}>
                   {t}
                 </button>
               ))}

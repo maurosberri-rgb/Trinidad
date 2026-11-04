@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { Icon, Logo, useCarga } from "../../components/ui";
+import { CambiarTema, Icon, Logo, useCarga } from "../../components/ui";
 
 const MENU = [
   { a: "/admin", t: "Panel", i: "panel", fin: true },
@@ -29,7 +29,7 @@ export default function AdminLayout() {
     <nav className="flex flex-1 flex-col gap-0.5 px-3">
       {MENU.map((m) => (
         <NavLink key={m.a} to={m.a} end={m.fin} onClick={() => setAbierto(false)}
-          className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive ? "bg-marca-claro text-marca" : "text-suave hover:bg-fondo hover:text-tinta"}`}>
+          className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive ? "bg-marca text-white shadow-suave" : "text-suave hover:bg-marca-claro hover:text-marca"}`}>
           <Icon name={m.i} />
           <span className="flex-1">{m.t}</span>
           {m.insignia && cuantos > 0 && <span className="rounded-full bg-peligro px-2 py-0.5 text-[11px] font-semibold text-white">{cuantos}</span>}
@@ -40,22 +40,22 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[250px_1fr]">
-      <aside className="no-imprimir sticky top-0 hidden h-screen flex-col border-r border-borde bg-sup py-5 lg:flex">
+      <aside className="no-imprimir sticky top-0 hidden h-screen flex-col border-r border-borde bg-sup pb-5 lg:flex"><span className="franja mb-5 block h-1.5" aria-hidden />
         <div className="mb-6 px-5"><Logo /></div>
         {menu}
         <div className="mt-4 border-t border-borde px-5 pt-4">
           <p className="truncate text-xs text-tenue">{sesion?.nombre}</p>
-          <button className="mt-2 flex items-center gap-2 text-sm text-suave hover:text-tinta" onClick={() => { salir(); nav("/"); }}><Icon name="salir" size={16} />Cerrar sesión</button>
+          <div className="mt-2 flex items-center justify-between"><button className="flex items-center gap-2 text-sm text-suave hover:text-tinta" onClick={() => { salir(); nav("/"); }}><Icon name="salir" size={16} />Cerrar sesión</button><CambiarTema /></div>
         </div>
       </aside>
 
       <div className="no-imprimir sticky top-0 z-30 flex items-center justify-between border-b border-borde bg-sup/95 px-4 py-3 backdrop-blur lg:hidden">
         <Logo />
-        <button className="rounded-lg p-2 text-suave hover:bg-fondo" onClick={() => setAbierto(true)} aria-label="Abrir menú"><Icon name="menu" size={22} /></button>
+        <div className="flex items-center gap-1"><CambiarTema /><button className="rounded-lg p-2 text-suave hover:bg-fondo" onClick={() => setAbierto(true)} aria-label="Abrir menú"><Icon name="menu" size={22} /></button></div>
       </div>
       {abierto && (
         <div className="no-imprimir fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-tinta/40" onClick={() => setAbierto(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setAbierto(false)} />
           <aside className="absolute inset-y-0 left-0 flex w-72 flex-col bg-sup py-5 shadow-flota">
             <div className="mb-6 flex items-center justify-between px-5"><Logo /><button onClick={() => setAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-tenue"><Icon name="cerrar" /></button></div>
             {menu}

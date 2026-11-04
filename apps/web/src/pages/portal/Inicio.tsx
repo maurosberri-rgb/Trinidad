@@ -37,9 +37,13 @@ export default function Inicio() {
 
   return (
     <div className="pb-28">
-      <div className="mb-6">
-        <h1 className="text-2xl">Hola, {datos.responsable.nombre}</h1>
-        <p className="mt-1 text-sm text-suave">
+      <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0b3a9e] via-marca to-[#0a2a6e] p-6 text-white shadow-flota sm:p-8">
+        <span className="absolute -right-10 -top-12 h-44 w-44 rounded-full bg-celeste/30" aria-hidden />
+        <span className="absolute -bottom-14 right-24 h-32 w-32 rounded-full bg-oro/30" aria-hidden />
+        <span className="absolute right-6 top-6 h-5 w-5 rounded-full bg-peligro/70" aria-hidden />
+        <p className="relative text-xs font-semibold uppercase tracking-[0.2em] text-oro">Portal de familias</p>
+        <h1 className="relative mt-2 text-2xl sm:text-3xl">Hola, {datos.responsable.nombre}</h1>
+        <p className="relative mt-1 text-sm text-white/80">
           {datos.alumnos.length ? datos.alumnos.map((a) => `${a.nombre.split(", ")[1]} (${a.curso || a.nivel})`).join(" · ") : "Resumen de tu cuenta"}
         </p>
       </div>
@@ -58,17 +62,17 @@ export default function Inicio() {
       ))}
 
       <section className="grid gap-3 sm:grid-cols-3">
-        <div className="card p-5">
+        <div className="card border-t-4 border-t-celeste p-5">
           <p className="text-xs font-medium text-tenue">Total a pagar</p>
           <p className="mt-2 text-2xl font-semibold tabular-nums">{pesos(totalDeuda)}</p>
           <p className="mt-1 text-xs text-tenue">{pendientes.length} {pendientes.length === 1 ? "cuota pendiente" : "cuotas pendientes"}</p>
         </div>
-        <div className="card p-5">
+        <div className={`card border-t-4 p-5 ${totalVencido > 0 ? "border-t-peligro" : "border-t-ok"}`}>
           <p className="text-xs font-medium text-tenue">Vencido</p>
           <p className={`mt-2 text-2xl font-semibold tabular-nums ${totalVencido > 0 ? "text-peligro" : "text-ok"}`}>{pesos(totalVencido)}</p>
           <p className="mt-1 text-xs text-tenue">{vencidas.length ? `${vencidas.length} con vencimiento pasado` : "Estás al día"}</p>
         </div>
-        <div className="card p-5">
+        <div className="card border-t-4 border-t-oro p-5">
           <p className="text-xs font-medium text-tenue">Próximo vencimiento</p>
           <p className="mt-2 text-2xl font-semibold tabular-nums">{proxima ? fecha(proxima.vencimiento) : "—"}</p>
           <p className="mt-1 truncate text-xs text-tenue">{proxima ? `${proxima.descripcion} · ${pesos(proxima.pendiente)}` : "Sin cuotas por vencer"}</p>
