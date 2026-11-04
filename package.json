@@ -1,0 +1,12 @@
+{
+  "name": "trinidad",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Instituto Santísima Trinidad — cobro de cuotas, actividades, gastos, plan de cuentas y portal de familias.",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "node dev.mjs",
+    "build": "npm run build --workspace apps/web && npm run build --workspace apps/api",
+    "start": "npm run start --workspace apps/api"
+  }
+}
