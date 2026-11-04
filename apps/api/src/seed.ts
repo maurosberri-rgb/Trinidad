@@ -131,10 +131,10 @@ export function cargarDemo() {
   d.demo = true;
 }
 
-export function iniciar(): DB {
-  let nueva = false;
-  const db = iniciarDB(() => { nueva = true; return vacia(); });
-  // Los datos de ejemplo se cargan solo la primera vez (base recién creada).
-  if (nueva && process.env.SIN_DEMO !== "1") { cargarDemo(); guardarAhora(); }
-  return db;
+export async function iniciar(): Promise<DB> {
+  const nueva = await iniciarDB(vacia);
+  // Los datos de ejemplo se cargan solo la primera vez (base recién creada) y nunca en producción (SIN_DEMO=1).
+  if (nueva && process.env.SIN_DEMO !== "1") cargarDemo();
+  if (nueva) await guardarAhora();
+  return getDB();
 }

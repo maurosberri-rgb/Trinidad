@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "trinidad",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+
+  // El contenedor: el sistema completo, construido desde el Dockerfile de la raíz del proyecto.
+  "containers": [
+    {
+      "class_name": "Trinidad",
+      "image": "../Dockerfile",
+      "image_build_context": "..",
+      "instance_type": "basic", // 1/4 vCPU y 1 GiB de memoria
+      "max_instances": 1 // una sola copia: el sistema trabaja en memoria y escribe cada cambio en Supabase
+    }
+  ],
+  "durable_objects": { "bindings": [{ "name": "TRINIDAD", "class_name": "Trinidad" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Trinidad"] }]
+
+  // Sin "routes": el sistema queda en https://trinidad.<tu-subdominio>.workers.dev.
+  // Cuando haya dominio propio en Cloudflare, agregar:
+  //   "routes": [{ "pattern": "cuotas.tu-colegio.edu.ar", "custom_domain": true }]
+}

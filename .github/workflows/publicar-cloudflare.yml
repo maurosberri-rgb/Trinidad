@@ -1,0 +1,49 @@
+name: Publicar en Cloudflare
+
+# Se ejecuta a mano: GitHub → Actions → «Publicar en Cloudflare» → Run workflow.
+# Cuando todo esté probado, para que se publique solo con cada cambio en main, reemplazar el bloque «on» por:
+#   on:
+#     push:
+#       branches: [main]
+#     workflow_dispatch:
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publicar-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar y revisar el código (si hay errores, no se publica)
+        run: |
+          npm ci
+          npm run typecheck --workspace apps/api
+          npx tsc --noEmit -p apps/web
+
+      - name: Instalar el publicador de Cloudflare
+        run: npm install --no-audit --no-fund
+        working-directory: cloudflare
+
+      - name: Publicar (construye la imagen y la sube a Cloudflare)
+        working-directory: cloudflare
+        env:
+          TOKEN_CRUDO: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CUENTA_CRUDA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Quita espacios, saltos de línea y comillas que se hayan colado al pegar los secretos.
+          export CLOUDFLARE_API_TOKEN="$(printf '%s' "$TOKEN_CRUDO" | tr -d '[:space:]"'"'")"
+          export CLOUDFLARE_ACCOUNT_ID="$(printf '%s' "$CUENTA_CRUDA" | tr -d '[:space:]"'"'")"
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "Falta el secreto CLOUDFLARE_API_TOKEN"; exit 1; }
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "Falta el secreto CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          npx wrangler deploy

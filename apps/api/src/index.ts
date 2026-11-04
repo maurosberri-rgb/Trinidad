@@ -4,17 +4,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bloqueado, crearToken, exito, falla, requiere } from "./auth.js";
 import { CTA, anularAsiento, asientoGasto, estadoResultados, mayor, nuevoAsiento, sumasYSaldos } from "./contab.js";
-import { cargarDemo, iniciar, vacia } from "./seed.js";
+import { cargarDemo, iniciar } from "./seed.js";
 import {
   anularCargo, anularPago, aplicarSaldoAFavor, crearCargo, estadoCargo, pendienteDe, registrarPago,
 } from "./servicios.js";
 import {
-  ARCHIVOS_DIR, claveValida, getDB, guardar, guardarAhora, hashClave, hoy, numeroFormateado, redondear, siguiente, uid,
+  borrarArchivos, claveValida, getDB, guardar, guardarAhora, guardarArchivo, hashClave, hoy, leerArchivo, numeroFormateado, redondear, siguiente, uid,
   type Alumno, type Cargo, type Comprobante, type Gasto, type Nivel, type Responsable,
 } from "./store.js";
 
-iniciar();
+await iniciar();
 const app = express();
+// Detrás del proxy de Cloudflare: se necesita la IP real del visitante (freno de intentos) y saber que la conexión es https.
+if (process.env.TRUST_PROXY) app.set("trust proxy", 1);
+
+/** Las rutas async de Express 4 no atrapan sus errores solas: se los pasamos al manejador. */
+const asinc = (fn: (req: Request, res: Response) => Promise<unknown>) => (req: Request, res: Response, next: NextFunction) => { fn(req, res).catch(next); };
 app.use(express.json({ limit: "12mb" }));
 
 /** Cualquier cambio exitoso (POST/PUT/DELETE) se persiste al terminar la respuesta. */
@@ -131,7 +136,7 @@ fam.post("/clave", (req, res) => {
 
 const TIPOS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
 
-fam.post("/comprobantes", (req, res) => {
+fam.post("/comprobantes", asinc(async (req, res) => {
   const d = getDB();
   const r = d.responsables.find((x) => x.id === req.sesion!.id)!;
   const cargoIds: string[] = Array.isArray(req.body.cargoIds) ? req.body.cargoIds.map(String) : [];
@@ -152,20 +157,21 @@ fam.post("/comprobantes", (req, res) => {
   if (buf.length > 6 * 1024 * 1024) rechazar("El archivo supera los 6 MB");
   const id = uid();
   const ruta = `${id}.${ext}`;
-  fs.writeFileSync(path.join(ARCHIVOS_DIR, ruta), buf);
+  await guardarArchivo(ruta, buf, tipo);
   const cp: Comprobante = {
     id, responsableId: r.id, creado: new Date().toISOString(), fechaPago, importe, cargoIds,
     archivo: { nombre: str(arch.nombre, 120) || `comprobante.${ext}`, tipo, ruta }, nota: str(req.body.nota, 500), estado: "pendiente", motivo: "",
   };
   d.comprobantes.push(cp);
   res.json(vistaComprobante(cp));
-});
+}));
 
-fam.get("/comprobantes/:id/archivo", (req, res) => {
+fam.get("/comprobantes/:id/archivo", asinc(async (req, res) => {
   const cp = getDB().comprobantes.find((x) => x.id === req.params.id && x.responsableId === req.sesion!.id);
-  if (!cp) return res.status(404).end();
-  res.type(cp.archivo.tipo).sendFile(path.join(ARCHIVOS_DIR, cp.archivo.ruta));
-});
+  const buf = cp ? await leerArchivo(cp.archivo.ruta) : null;
+  if (!cp || !buf) return res.status(404).end();
+  res.type(cp.archivo.tipo).send(buf);
+}));
 
 // ---------- Administración ----------
 const adm = express.Router();
@@ -360,11 +366,12 @@ adm.get("/comprobantes", (req, res) => {
   const estado = str(req.query.estado);
   res.json(getDB().comprobantes.filter((c) => !estado || c.estado === estado).sort((a, b) => b.creado.localeCompare(a.creado)).map(vistaComprobante));
 });
-adm.get("/comprobantes/:id/archivo", (req, res) => {
+adm.get("/comprobantes/:id/archivo", asinc(async (req, res) => {
   const cp = getDB().comprobantes.find((x) => x.id === req.params.id);
-  if (!cp) return res.status(404).end();
-  res.type(cp.archivo.tipo).sendFile(path.join(ARCHIVOS_DIR, cp.archivo.ruta));
-});
+  const buf = cp ? await leerArchivo(cp.archivo.ruta) : null;
+  if (!cp || !buf) return res.status(404).end();
+  res.type(cp.archivo.tipo).send(buf);
+}));
 adm.post("/comprobantes/:id/aprobar", (req, res) => {
   const d = getDB();
   const cp = d.comprobantes.find((x) => x.id === req.params.id);
@@ -489,13 +496,13 @@ adm.post("/ajustes/clave", (req, res) => {
   res.json({ ok: true });
 });
 /** Borra alumnos, familias, cargos, recibos, gastos y asientos; conserva el plan de cuentas, los conceptos y los ajustes. */
-adm.post("/ajustes/limpiar-datos", (req, res) => {
+adm.post("/ajustes/limpiar-datos", asinc(async (req, res) => {
   if (str(req.body.confirmar) !== "BORRAR") rechazar('Escribí BORRAR para confirmar');
   const d = getDB();
   Object.assign(d, { responsables: [], alumnos: [], cargos: [], pagos: [], comprobantes: [], gastos: [], asientos: [], contadores: {}, demo: false });
-  for (const f of fs.readdirSync(ARCHIVOS_DIR)) fs.rmSync(path.join(ARCHIVOS_DIR, f), { force: true });
+  await borrarArchivos();
   res.json({ ok: true });
-});
+}));
 adm.post("/ajustes/cargar-ejemplo", (_req, res) => {
   const d = getDB();
   if (d.responsables.length || d.asientos.length) rechazar("Solo se pueden cargar datos de ejemplo en una base vacía");
@@ -527,6 +534,5 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 const PORT = Number(process.env.PORT || 4500);
 app.listen(PORT, () => console.log(`API Instituto Santísima Trinidad en http://localhost:${PORT}`));
-process.on("SIGINT", () => { guardarAhora(); process.exit(0); });
-process.on("SIGTERM", () => { guardarAhora(); process.exit(0); });
-void vacia;
+// Al apagarse (por ejemplo, cuando Cloudflare duerme el contenedor) se termina de guardar lo pendiente.
+for (const señal of ["SIGINT", "SIGTERM"] as const) process.on(señal, () => { void guardarAhora().finally(() => process.exit(0)); });
