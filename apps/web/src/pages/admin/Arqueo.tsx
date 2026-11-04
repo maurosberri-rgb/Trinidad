@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { api } from "../../lib/api";
 import { MEDIOS, fecha, hoyISO, nombreMedio, pesos, sumar } from "../../lib/format";
 import type { PagoAdm } from "../../components/RegistrarPago";
-import { Campo, Cargando, Chip, ErrorBox, Icon, Kpi, Vacio, useCarga } from "../../components/ui";
+import { Cabecera, Campo, Cargando, Chip, ErrorBox, Icon, Kpi, Vacio, useCarga } from "../../components/ui";
 
 const ORIGEN = {
   presencial: { texto: "Presencial", clase: "bg-celeste/15 text-celeste" },
@@ -37,6 +37,7 @@ export default function Arqueo() {
 
   return (
     <>
+      <Cabecera titulo="Arqueo de caja" subtitulo="Todos los cobros del período por medio de pago, diferenciando los presenciales de los del portal web." />
       <div className="card no-imprimir mb-5 flex flex-wrap items-end gap-3 p-4">
         <Campo label="Desde"><input className="input" type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} /></Campo>
         <Campo label="Hasta"><input className="input" type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} /></Campo>

@@ -3,12 +3,11 @@ import { api, mensajeError } from "../../lib/api";
 import { dni as fmtDni, fecha, nombreMedio, pesos } from "../../lib/format";
 import RegistrarPago, { type PagoAdm } from "../../components/RegistrarPago";
 import { Cabecera, Cargando, Chip, ErrorBox, Icon, Modal, Pestanas, Vacio, useCarga } from "../../components/ui";
-import Arqueo from "./Arqueo";
 import type { RespAdm } from "./Familias";
 
 
 export default function Cobranza() {
-  const [tab, setTab] = useState<"deuda" | "recibos" | "arqueo">("deuda");
+  const [tab, setTab] = useState<"deuda" | "recibos">("deuda");
   const [nuevo, setNuevo] = useState(false);
   return (
     <>
@@ -16,8 +15,8 @@ export default function Cobranza() {
         <button className="btn-primary" onClick={() => setNuevo(true)}><Icon name="mas" size={16} />Nuevo cobro</button>
       </Cabecera>
       {nuevo && <ElegirFamilia onClose={() => setNuevo(false)} />}
-      <Pestanas valor={tab} onChange={setTab} opciones={[{ id: "deuda", texto: "Deuda por familia" }, { id: "recibos", texto: "Recibos emitidos" }, { id: "arqueo", texto: "Arqueo de caja" }]} />
-      {tab === "deuda" ? <Deuda /> : tab === "recibos" ? <Recibos /> : <Arqueo />}
+      <Pestanas valor={tab} onChange={setTab} opciones={[{ id: "deuda", texto: "Deuda por familia" }, { id: "recibos", texto: "Recibos emitidos" }]} />
+      {tab === "deuda" ? <Deuda /> : <Recibos />}
     </>
   );
 }
