@@ -8,7 +8,7 @@ export interface CargoAdm {
   pagado: number; pendiente: number; estado: string; alumno: string; alumnoId: string; responsableId: string;
 }
 export interface PagoAdm {
-  id: string; numero: string; fecha: string; medio: string; referencia?: string; conciliado?: boolean; importe: number; aFavor: number; observacion: string; anulado: boolean; responsable: string; responsableId: string;
+  id: string; numero: string; fecha: string; medio: string; origen?: "presencial" | "portal" | "saldo"; referencia?: string; conciliado?: boolean; importe: number; aFavor: number; observacion: string; anulado: boolean; responsable: string; responsableId: string;
   detalle: { monto: number; descripcion: string; alumno: string }[];
 }
 export interface CuentaFamilia {

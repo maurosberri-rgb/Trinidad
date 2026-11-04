@@ -62,7 +62,7 @@ function vistaComprobante(cp: Comprobante) {
 const vistaPago = (p: ReturnType<typeof getDB>["pagos"][number]) => {
   const d = getDB();
   return {
-    id: p.id, numero: p.numero, fecha: p.fecha, medio: p.medio, referencia: p.referencia ?? "", conciliado: Boolean(p.conciliado), importe: p.importe, aFavor: p.aFavor, observacion: p.observacion, anulado: p.anulado,
+    id: p.id, numero: p.numero, fecha: p.fecha, medio: p.medio, origen: p.cuentaCaja === CTA.anticipos ? "saldo" : p.comprobanteId ? "portal" : "presencial", referencia: p.referencia ?? "", conciliado: Boolean(p.conciliado), importe: p.importe, aFavor: p.aFavor, observacion: p.observacion, anulado: p.anulado,
     responsableId: p.responsableId, responsable: nombreResp(d.responsables.find((r) => r.id === p.responsableId)),
     detalle: p.imputaciones.map((i) => ({ monto: i.monto, descripcion: d.cargos.find((c) => c.id === i.cargoId)?.descripcion ?? "", alumno: nombreAlumno(d.alumnos.find((a) => a.id === d.cargos.find((c) => c.id === i.cargoId)?.alumnoId)) })),
   };
