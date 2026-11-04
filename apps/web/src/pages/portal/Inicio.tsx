@@ -24,12 +24,42 @@ export default function Inicio() {
 
   const porAlumno = useMemo(() => {
     const m = new Map<string, { nombre: string; lista: CargoF[] }>();
-    for (const c of pendientes) {
+    for (const c of pendientes.filter((x) => !x.evento)) {
       if (!m.has(c.alumnoId)) m.set(c.alumnoId, { nombre: c.alumno, lista: [] });
       m.get(c.alumnoId)!.lista.push(c);
     }
     return [...m.values()];
   }, [pendientes]);
+
+  // Viajes, campamentos y otros cobros eventuales, agrupados por evento
+  const porEvento = useMemo(() => {
+    const m = new Map<string, { evento: NonNullable<CargoF["evento"]>; lista: CargoF[] }>();
+    for (const c of pendientes.filter((x) => x.evento)) {
+      if (!m.has(c.evento!.id)) m.set(c.evento!.id, { evento: c.evento!, lista: [] });
+      m.get(c.evento!.id)!.lista.push(c);
+    }
+    return [...m.values()];
+  }, [pendientes]);
+
+  const fila = (c: CargoF, conAlumno = false) => {
+    const est = ESTADO_CARGO[c.estado];
+    const marcado = elegidas.has(c.id);
+    return (
+      <li key={c.id} className="border-b border-borde/70 last:border-0">
+        <label className={`flex items-center gap-4 px-5 py-4 ${c.enRevision ? "opacity-60" : "cursor-pointer hover:bg-fondo/50"}`}>
+          <input type="checkbox" className="h-5 w-5 shrink-0 accent-marca" checked={marcado} disabled={c.enRevision} onChange={() => alternar(c)} aria-label={`Elegir ${c.descripcion}`} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">{conAlumno ? `${c.alumno.split(", ")[1] ?? c.alumno} · ` : ""}{c.descripcion}</span>
+            <span className="mt-0.5 block text-xs text-tenue">Vence el {fecha(c.vencimiento)}{c.descuento > 0 && ` · incluye beca de ${pesos(c.descuento)}`}</span>
+          </span>
+          <span className="text-right">
+            <span className="block text-sm font-semibold tabular-nums">{pesos(c.pendiente)}</span>
+            {c.enRevision ? <Chip clase="bg-aviso-claro text-aviso">Comprobante en revisión</Chip> : <Chip clase={est.clase}>{est.texto}</Chip>}
+          </span>
+        </label>
+      </li>
+    );
+  };
 
   const alternar = (c: CargoF) => setElegidas((s) => { const n = new Set(s); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; });
   const seleccionarVencidas = () => setElegidas(new Set(vencidas.filter((c) => !c.enRevision).map((c) => c.id)));
@@ -101,27 +131,19 @@ export default function Inicio() {
           {porAlumno.map((g) => (
             <div key={g.nombre} className="card overflow-hidden">
               <p className="border-b border-borde bg-fondo/60 px-5 py-3 text-sm font-semibold">{g.nombre}</p>
-              <ul>
-                {g.lista.map((c) => {
-                  const est = ESTADO_CARGO[c.estado];
-                  const marcado = elegidas.has(c.id);
-                  return (
-                    <li key={c.id} className="border-b border-borde/70 last:border-0">
-                      <label className={`flex items-center gap-4 px-5 py-4 ${c.enRevision ? "opacity-60" : "cursor-pointer hover:bg-fondo/50"}`}>
-                        <input type="checkbox" className="h-5 w-5 shrink-0 accent-marca" checked={marcado} disabled={c.enRevision} onChange={() => alternar(c)} aria-label={`Elegir ${c.descripcion}`} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{c.descripcion}</span>
-                          <span className="mt-0.5 block text-xs text-tenue">Vence el {fecha(c.vencimiento)}{c.descuento > 0 && ` · incluye beca de ${pesos(c.descuento)}`}</span>
-                        </span>
-                        <span className="text-right">
-                          <span className="block text-sm font-semibold tabular-nums">{pesos(c.pendiente)}</span>
-                          {c.enRevision ? <Chip clase="bg-aviso-claro text-aviso">Comprobante en revisión</Chip> : <Chip clase={est.clase}>{est.texto}</Chip>}
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ul>{g.lista.map((c) => fila(c))}</ul>
+            </div>
+          ))}
+          {porEvento.length > 0 && <h2 className="!mt-8 text-lg">Viajes y actividades</h2>}
+          {porEvento.map((g) => (
+            <div key={g.evento.id} className="card overflow-hidden border-t-4 border-t-oro">
+              <div className="border-b border-borde bg-oro-claro/50 px-5 py-3">
+                <p className="flex items-center gap-2 text-sm font-semibold"><Icon name="eventos" size={16} className="text-oro" />{g.evento.nombre}</p>
+                {(g.evento.fechaEvento || g.evento.descripcion) && (
+                  <p className="mt-1 text-xs text-suave">{g.evento.fechaEvento && `Fecha: ${fecha(g.evento.fechaEvento)}`}{g.evento.fechaEvento && g.evento.descripcion && " · "}{g.evento.descripcion}</p>
+                )}
+              </div>
+              <ul>{g.lista.map((c) => fila(c, datos.alumnos.length > 1))}</ul>
             </div>
           ))}
         </div>

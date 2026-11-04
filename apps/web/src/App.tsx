@@ -8,6 +8,8 @@ import Familias from "./pages/admin/Familias";
 import Cobranza from "./pages/admin/Cobranza";
 import Comprobantes from "./pages/admin/Comprobantes";
 import Cargos from "./pages/admin/Cargos";
+import Conciliacion from "./pages/admin/Conciliacion";
+import Eventos from "./pages/admin/Eventos";
 import Gastos from "./pages/admin/Gastos";
 import Contabilidad from "./pages/admin/Contabilidad";
 import Ajustes from "./pages/admin/Ajustes";
@@ -32,6 +34,8 @@ export default function App() {
         <Route path="cobranza" element={<Cobranza />} />
         <Route path="comprobantes" element={<Comprobantes />} />
         <Route path="cargos" element={<Cargos />} />
+        <Route path="conciliacion" element={<Conciliacion />} />
+        <Route path="eventos" element={<Eventos />} />
         <Route path="gastos" element={<Gastos />} />
         <Route path="contabilidad" element={<Contabilidad />} />
         <Route path="ajustes" element={<Ajustes />} />

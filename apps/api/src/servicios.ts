@@ -1,7 +1,7 @@
 import { CTA, anularAsiento, asientoCargo, asientoPago } from "./contab.js";
 import {
   getDB, numeroFormateado, redondear, siguiente, uid,
-  type Alumno, type Cargo, type Concepto, type Pago,
+  type Alumno, type Cargo, type Concepto, type MedioPago, type Pago,
 } from "./store.js";
 
 export const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -18,7 +18,7 @@ export function descripcionPorDefecto(concepto: Concepto, periodo: string): stri
 
 export interface NuevoCargo {
   alumno: Alumno; concepto: Concepto; periodo: string; emision: string; vencimiento: string;
-  importe?: number; descripcion?: string;
+  importe?: number; descripcion?: string; eventoId?: string;
 }
 
 /** Crea el cargo con su beca y el asiento de devengamiento. Devuelve null si ya existía el mismo. */
@@ -36,6 +36,7 @@ export function crearCargo(n: NuevoCargo): Cargo | null {
     responsableId: n.alumno.pagadorId, conceptoId: n.concepto.id, descripcion, periodo: n.periodo,
     emision: n.emision, vencimiento: n.vencimiento, bruto, descuento, importe: redondear(bruto - descuento),
     pagado: 0, anulado: false, cuenta: n.concepto.cuenta, asientoId: "",
+    ...(n.eventoId ? { eventoId: n.eventoId } : {}),
   };
   d.cargos.push(c);
   const a = asientoCargo(c, `${c.numero} · ${descripcion} · ${n.alumno.apellido}, ${n.alumno.nombre}`);
@@ -54,8 +55,11 @@ export function anularCargo(id: string) {
 
 export interface NuevoPago {
   responsableId: string; fecha: string; medio: Pago["medio"]; importe: number; cargoIds?: string[];
-  observacion?: string; comprobanteId?: string;
+  observacion?: string; comprobanteId?: string; referencia?: string;
 }
+
+/** Dónde entra la plata según el medio: efectivo en caja; cheques y tarjetas quedan a depositar; el resto va directo al banco. */
+export const cuentaDeMedio = (m: MedioPago) => (m === "efectivo" ? CTA.caja : m === "cheque" || m === "tarjeta_debito" || m === "tarjeta_credito" ? CTA.valores : CTA.banco);
 
 /** Aplica el importe a los cargos indicados (o a todos los pendientes) empezando por los más viejos; el sobrante queda a favor. */
 export function registrarPago(n: NuevoPago): Pago {
@@ -77,8 +81,8 @@ export function registrarPago(n: NuevoPago): Pago {
   }
   const p: Pago = {
     id: uid(), numero: numeroFormateado("RC", siguiente("pago")), fecha: n.fecha, responsableId: r.id, medio: n.medio,
-    cuentaCaja: n.medio === "efectivo" ? CTA.caja : CTA.banco, importe, imputaciones, aFavor: resto,
-    comprobanteId: n.comprobanteId, observacion: n.observacion ?? "", anulado: false, asientoId: "",
+    cuentaCaja: cuentaDeMedio(n.medio), importe, imputaciones, aFavor: resto,
+    comprobanteId: n.comprobanteId, ...(n.referencia ? { referencia: n.referencia } : {}), observacion: n.observacion ?? "", anulado: false, asientoId: "",
   };
   for (const i of imputaciones) d.cargos.find((c) => c.id === i.cargoId)!.pagado = redondear(d.cargos.find((c) => c.id === i.cargoId)!.pagado + i.monto);
   r.saldoAFavor = redondear(r.saldoAFavor + resto);
@@ -132,6 +136,13 @@ export function anularPago(id: string) {
   r.saldoAFavor = redondear(esAplicacion ? r.saldoAFavor + p.importe : r.saldoAFavor - p.aFavor);
   p.anulado = true;
   anularAsiento(p.asientoId);
+  // Si ya estaba cruzado con el banco, se deshace el cruce para que el movimiento vuelva a quedar pendiente.
+  if (p.conciliado) {
+    if (p.conciliado.asientoId) anularAsiento(p.conciliado.asientoId);
+    const linea = d.extractos.find((x) => x.id === p.conciliado!.extractoId)?.lineas.find((l) => l.id === p.conciliado!.lineaId);
+    if (linea) { linea.estado = "pendiente"; linea.pagoId = undefined; }
+    p.conciliado = undefined;
+  }
   // Si venía de un comprobante online, vuelve a quedar pendiente de revisión.
   if (p.comprobanteId) {
     const cp = d.comprobantes.find((x) => x.id === p.comprobanteId);

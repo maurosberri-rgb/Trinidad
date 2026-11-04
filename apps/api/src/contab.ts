@@ -5,6 +5,7 @@ export const CTA = {
   caja: "1.1.01",
   banco: "1.1.02",
   deudores: "1.1.03",
+  valores: "1.1.04",
   proveedores: "2.1.01",
   anticipos: "2.1.03",
   becas: "4.1.05",

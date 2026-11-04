@@ -4,13 +4,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bloqueado, crearToken, exito, falla, requiere } from "./auth.js";
 import { CTA, anularAsiento, asientoGasto, estadoResultados, mayor, nuevoAsiento, sumasYSaldos } from "./contab.js";
+import { candidatosPara, deshacer, leerExcel, leerPdf, nuevaLinea, sugerencia, vincular } from "./conciliacion.js";
 import { cargarDemo, iniciar } from "./seed.js";
 import {
   anularCargo, anularPago, aplicarSaldoAFavor, crearCargo, estadoCargo, pendienteDe, registrarPago,
 } from "./servicios.js";
 import {
   borrarArchivos, claveValida, getDB, guardar, guardarAhora, guardarArchivo, hashClave, hoy, leerArchivo, numeroFormateado, redondear, siguiente, uid,
-  type Alumno, type Cargo, type Comprobante, type Gasto, type Nivel, type Responsable,
+  type Alumno, type Cargo, type Comprobante, type Evento, type Extracto, type Gasto, type LineaBanco, type MedioPago, type Nivel, type Responsable,
 } from "./store.js";
 
 await iniciar();
@@ -46,6 +47,7 @@ function vistaCargo(c: Cargo) {
     bruto: c.bruto, descuento: c.descuento, importe: c.importe, pagado: c.pagado, pendiente: pendienteDe(c),
     estado: estadoCargo(c, hoy()), alumnoId: c.alumnoId, alumno: nombreAlumno(d.alumnos.find((a) => a.id === c.alumnoId)),
     responsableId: c.responsableId, conceptoId: c.conceptoId,
+    evento: c.eventoId ? (({ id, nombre, fechaEvento, descripcion }) => ({ id, nombre, fechaEvento, descripcion }))(d.eventos.find((e) => e.id === c.eventoId) ?? { id: c.eventoId, nombre: "Evento", fechaEvento: "", descripcion: "" }) : null,
   };
 }
 function vistaComprobante(cp: Comprobante) {
@@ -60,7 +62,7 @@ function vistaComprobante(cp: Comprobante) {
 const vistaPago = (p: ReturnType<typeof getDB>["pagos"][number]) => {
   const d = getDB();
   return {
-    id: p.id, numero: p.numero, fecha: p.fecha, medio: p.medio, importe: p.importe, aFavor: p.aFavor, observacion: p.observacion, anulado: p.anulado,
+    id: p.id, numero: p.numero, fecha: p.fecha, medio: p.medio, referencia: p.referencia ?? "", conciliado: Boolean(p.conciliado), importe: p.importe, aFavor: p.aFavor, observacion: p.observacion, anulado: p.anulado,
     responsableId: p.responsableId, responsable: nombreResp(d.responsables.find((r) => r.id === p.responsableId)),
     detalle: p.imputaciones.map((i) => ({ monto: i.monto, descripcion: d.cargos.find((c) => c.id === i.cargoId)?.descripcion ?? "", alumno: nombreAlumno(d.alumnos.find((a) => a.id === d.cargos.find((c) => c.id === i.cargoId)?.alumnoId)) })),
   };
@@ -350,17 +352,236 @@ adm.post("/cargos/generar", (req, res) => {
 });
 adm.post("/cargos/:id/anular", (req, res) => { anularCargo(req.params.id); res.json({ ok: true }); });
 
+// Eventos: cobros eventuales (viaje de estudio, campamento, salida…) en una o varias cuotas
+function resumenEvento(e: Evento) {
+  const d = getDB();
+  const cargos = d.cargos.filter((c) => c.eventoId === e.id && !c.anulado);
+  const importe = redondear(cargos.reduce((s, c) => s + c.importe, 0));
+  const cobrado = redondear(cargos.reduce((s, c) => s + c.pagado, 0));
+  const alumnos = new Set(cargos.map((c) => c.alumnoId));
+  const alDia = [...alumnos].filter((id) => cargos.filter((c) => c.alumnoId === id).every((c) => pendienteDe(c) <= 0)).length;
+  return { ...e, participantes: alumnos.size, alDia, total: importe, cobrado, pendiente: redondear(importe - cobrado) };
+}
+/** Cargos de un evento para un conjunto de alumnos; si ya los tienen, no se repiten. */
+function generarCargosEvento(e: Evento, alumnos: Alumno[]) {
+  const concepto = { id: `evento:${e.id}`, nombre: e.nombre, tipo: "actividad" as const, importe: e.importe, cuenta: e.cuenta, activo: true };
+  const porCuota = redondear(e.importe / e.cuotas);
+  let creados = 0, total = 0;
+  for (const a of alumnos) {
+    for (let i = 0; i < e.cuotas; i++) {
+      const f = new Date(`${e.primerVencimiento}T12:00:00`);
+      f.setMonth(f.getMonth() + i);
+      const venc = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`;
+      const importe = i === e.cuotas - 1 ? redondear(e.importe - porCuota * (e.cuotas - 1)) : porCuota;
+      const descripcion = e.cuotas > 1 ? `${e.nombre} · cuota ${i + 1} de ${e.cuotas}` : e.nombre;
+      const c = crearCargo({ alumno: a, concepto, periodo: venc.slice(0, 7), emision: hoy(), vencimiento: venc, importe, descripcion, eventoId: e.id });
+      if (c) { creados++; total += c.importe; }
+    }
+  }
+  return { creados, total: redondear(total) };
+}
+function alumnosDeSeleccion(b: Record<string, unknown>) {
+  const ids = Array.isArray(b.alumnoIds) ? b.alumnoIds.map(String) : null;
+  const niveles = Array.isArray(b.niveles) ? b.niveles.map(String) : [];
+  const cursos = Array.isArray(b.cursos) ? b.cursos.map(String) : [];
+  return getDB().alumnos.filter((a) => a.activo && (ids ? ids.includes(a.id) : (!niveles.length || niveles.includes(a.nivel)) && (!cursos.length || cursos.includes(a.curso))));
+}
+adm.get("/eventos", (_req, res) => res.json(getDB().eventos.slice().reverse().map(resumenEvento)));
+adm.get("/eventos/:id", (req, res) => {
+  const d = getDB();
+  const e = d.eventos.find((x) => x.id === req.params.id);
+  if (!e) return rechazar("Evento inexistente");
+  const cargos = d.cargos.filter((c) => c.eventoId === e.id && !c.anulado).map(vistaCargo);
+  const porAlumno = new Map<string, { alumnoId: string; alumno: string; total: number; pagado: number; pendiente: number; vencido: number }>();
+  for (const c of cargos) {
+    const f = porAlumno.get(c.alumnoId) ?? { alumnoId: c.alumnoId, alumno: c.alumno, total: 0, pagado: 0, pendiente: 0, vencido: 0 };
+    f.total = redondear(f.total + c.importe); f.pagado = redondear(f.pagado + c.pagado); f.pendiente = redondear(f.pendiente + c.pendiente);
+    if (c.estado === "vencido") f.vencido = redondear(f.vencido + c.pendiente);
+    porAlumno.set(c.alumnoId, f);
+  }
+  res.json({ evento: resumenEvento(e), participantes: [...porAlumno.values()].sort((a, b) => a.alumno.localeCompare(b.alumno)) });
+});
+adm.post("/eventos", (req, res) => {
+  const d = getDB();
+  const nombre = str(req.body.nombre, 100);
+  if (!nombre) rechazar("Poné un nombre al evento");
+  const importe = num(req.body.importe);
+  if (!(importe > 0)) rechazar("El importe por alumno debe ser mayor a cero");
+  const cuotas = Math.round(Number(req.body.cuotas) || 1);
+  if (cuotas < 1 || cuotas > 24) rechazar("Las cuotas deben ser entre 1 y 24");
+  const cuenta = str(req.body.cuenta) || "4.1.03";
+  if (!d.cuentas.some((c) => c.codigo === cuenta && c.tipo === "Ingreso" && c.imputable)) rechazar("Elegí una cuenta de ingresos válida");
+  const alumnos = alumnosDeSeleccion(req.body);
+  if (!alumnos.length) rechazar("No hay alumnos que cumplan la selección");
+  const e: Evento = {
+    id: uid(), nombre, descripcion: str(req.body.descripcion, 400), fechaEvento: req.body.fechaEvento ? fechaOk(req.body.fechaEvento) : "",
+    importe, cuotas, primerVencimiento: fechaOk(req.body.primerVencimiento), cuenta, alumnoIds: alumnos.map((a) => a.id), creado: hoy(), cerrado: false,
+  };
+  d.eventos.push(e);
+  const r = generarCargosEvento(e, alumnos);
+  res.json({ ...resumenEvento(e), ...r });
+});
+/** Suma alumnos a un evento ya creado (se anotó alguien más). */
+adm.post("/eventos/:id/participantes", (req, res) => {
+  const d = getDB();
+  const e = d.eventos.find((x) => x.id === req.params.id);
+  if (!e) return rechazar("Evento inexistente");
+  if (e.cerrado) rechazar("El evento está cerrado");
+  const alumnos = alumnosDeSeleccion({ alumnoIds: Array.isArray(req.body.alumnoIds) ? req.body.alumnoIds : [] });
+  if (!alumnos.length) rechazar("Elegí al menos un alumno");
+  const r = generarCargosEvento(e, alumnos);
+  e.alumnoIds = [...new Set([...e.alumnoIds, ...alumnos.map((a) => a.id)])];
+  res.json(r);
+});
+/** Cierra el evento: anula las cuotas que nadie pagó todavía (las ya cobradas quedan como están). */
+adm.post("/eventos/:id/cerrar", (req, res) => {
+  const d = getDB();
+  const e = d.eventos.find((x) => x.id === req.params.id);
+  if (!e) return rechazar("Evento inexistente");
+  let anulados = 0;
+  for (const c of d.cargos.filter((x) => x.eventoId === e.id && !x.anulado && x.pagado === 0)) { anularCargo(c.id); anulados++; }
+  e.cerrado = true;
+  res.json({ anulados });
+});
+
 // Cobranzas
+const MEDIOS: MedioPago[] = ["efectivo", "transferencia", "cheque", "tarjeta_debito", "tarjeta_credito", "deposito", "mercadopago", "otro"];
 adm.get("/pagos", (_req, res) => res.json(getDB().pagos.slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || b.numero.localeCompare(a.numero)).map(vistaPago)));
 adm.post("/pagos", (req, res) => {
-  const medio = ["efectivo", "transferencia", "otro"].includes(str(req.body.medio)) ? (str(req.body.medio) as "efectivo") : rechazar("Elegí el medio de pago");
+  const medio = MEDIOS.includes(str(req.body.medio) as MedioPago) ? (str(req.body.medio) as MedioPago) : rechazar("Elegí el medio de pago");
   const p = registrarPago({
     responsableId: str(req.body.responsableId), fecha: fechaOk(req.body.fecha), medio, importe: num(req.body.importe),
-    cargoIds: Array.isArray(req.body.cargoIds) ? req.body.cargoIds.map(String) : [], observacion: str(req.body.observacion, 300),
+    cargoIds: Array.isArray(req.body.cargoIds) ? req.body.cargoIds.map(String) : [], observacion: str(req.body.observacion, 300), referencia: str(req.body.referencia, 80),
   });
   res.json(vistaPago(p));
 });
 adm.post("/pagos/:id/anular", (req, res) => { anularPago(req.params.id); res.json({ ok: true }); });
+
+// Conciliación bancaria: se importa el extracto (Excel, CSV o PDF) y se cruza con los cobros registrados
+function resumenExtracto(e: Extracto) {
+  const cred = e.lineas.filter((l) => l.importe > 0);
+  return {
+    id: e.id, nombre: e.nombre, creado: e.creado, desde: e.desde, hasta: e.hasta, movimientos: e.lineas.length,
+    ingresos: redondear(cred.reduce((s, l) => s + l.importe, 0)),
+    pendientes: cred.filter((l) => l.estado === "pendiente").length,
+    conciliadas: cred.filter((l) => l.estado === "conciliada").length,
+    conciliado: redondear(cred.filter((l) => l.estado === "conciliada").reduce((s, l) => s + l.importe, 0)),
+  };
+}
+const buscarLinea = (extId: string, lineaId: string) => {
+  const ext = getDB().extractos.find((x) => x.id === extId);
+  const l = ext?.lineas.find((x) => x.id === lineaId);
+  if (!ext || !l) return rechazar("Movimiento inexistente");
+  return { ext, l };
+};
+adm.get("/conciliacion/extractos", (_req, res) => res.json(getDB().extractos.slice().reverse().map(resumenExtracto)));
+adm.post("/conciliacion/extractos", asinc(async (req, res) => {
+  const d = getDB();
+  const a = req.body.archivo as { nombre?: string; tipo?: string; base64?: string } | undefined;
+  if (!a?.base64) return rechazar("Elegí el archivo del extracto");
+  const buf = Buffer.from(String(a.base64), "base64");
+  if (!buf.length || buf.length > 8 * 1024 * 1024) return rechazar("El archivo está vacío o supera los 8 MB");
+  const nombreArch = str(a.nombre, 120) || "extracto";
+  const esPdf = /\.pdf$/i.test(nombreArch) || a.tipo === "application/pdf" || buf.subarray(0, 4).toString() === "%PDF";
+  let lectura;
+  try { lectura = esPdf ? await leerPdf(buf) : leerExcel(buf); }
+  catch (e) { return rechazar(e instanceof Error ? e.message : "No se pudo leer el archivo"); }
+  if (!lectura.filas.length) return rechazar(lectura.avisos[0] ?? "No se encontraron movimientos");
+  // Si se sube dos veces un período superpuesto, los movimientos ya importados no se duplican
+  const clave = (f: { fecha: string; importe: number; descripcion: string; referencia: string }) => `${f.fecha}|${f.importe}|${f.descripcion}|${f.referencia}`;
+  const existentes = new Set(d.extractos.flatMap((x) => x.lineas.map(clave)));
+  const nuevas = lectura.filas.filter((f) => !existentes.has(clave(f)));
+  const omitidas = lectura.filas.length - nuevas.length;
+  if (!nuevas.length) return rechazar("Todos los movimientos de este archivo ya estaban importados");
+  const fechas = nuevas.map((f) => f.fecha).sort();
+  const ext: Extracto = {
+    id: uid(), nombre: str(req.body.nombre, 80) || nombreArch, creado: new Date().toISOString(), desde: fechas[0], hasta: fechas[fechas.length - 1],
+    lineas: nuevas.map(nuevaLinea),
+  };
+  // Los egresos no se concilian contra cobros: quedan ignorados
+  for (const l of ext.lineas) if (l.importe <= 0) l.estado = "ignorada";
+  d.extractos.push(ext);
+  res.json({ ...resumenExtracto(ext), omitidas, avisos: lectura.avisos });
+}));
+adm.get("/conciliacion/extractos/:id", (req, res) => {
+  const d = getDB();
+  const ext = d.extractos.find((x) => x.id === req.params.id);
+  if (!ext) return rechazar("Extracto inexistente");
+  const lineas = ext.lineas.map((l) => {
+    const candidatos = l.estado === "pendiente" ? candidatosPara(l).slice(0, 5) : [];
+    const pago = l.pagoId ? d.pagos.find((p) => p.id === l.pagoId) : undefined;
+    return { ...l, candidatos, sugerida: sugerencia(candidatos)?.id ?? null, cobro: pago ? { id: pago.id, numero: pago.numero, responsable: nombreResp(d.responsables.find((r) => r.id === pago.responsableId)) } : null };
+  });
+  res.json({ extracto: resumenExtracto(ext), lineas });
+});
+adm.post("/conciliacion/extractos/:id/eliminar", (req, res) => {
+  const d = getDB();
+  const ext = d.extractos.find((x) => x.id === req.params.id);
+  if (!ext) return rechazar("Extracto inexistente");
+  if (ext.lineas.some((l) => l.estado === "conciliada")) rechazar("Tiene movimientos conciliados: deshacé primero esos cruces");
+  d.extractos = d.extractos.filter((x) => x.id !== ext.id);
+  res.json({ ok: true });
+});
+/** Cruza un movimiento con un cobro ya registrado, o aprueba el comprobante que informó la familia. */
+function conciliarLinea(ext: Extracto, l: LineaBanco, destino: { pagoId?: string; comprobanteId?: string }) {
+  const d = getDB();
+  let pago = destino.pagoId ? d.pagos.find((p) => p.id === destino.pagoId) : undefined;
+  if (!pago && destino.comprobanteId) {
+    const cp = d.comprobantes.find((x) => x.id === destino.comprobanteId);
+    if (!cp || cp.estado !== "pendiente") return rechazar("Ese comprobante ya fue resuelto");
+    pago = registrarPago({ responsableId: cp.responsableId, fecha: l.fecha, medio: "transferencia", importe: cp.importe, cargoIds: cp.cargoIds, observacion: `Transferencia informada online${cp.nota ? ` · ${cp.nota}` : ""}`, comprobanteId: cp.id, referencia: l.referencia });
+    cp.estado = "aprobado"; cp.pagoId = pago.id; cp.resuelto = new Date().toISOString(); cp.motivo = "";
+  }
+  if (!pago) return rechazar("Elegí el cobro con el que coincide");
+  vincular(ext, l, pago);
+}
+adm.post("/conciliacion/extractos/:id/lineas/:lineaId/conciliar", (req, res) => {
+  const { ext, l } = buscarLinea(req.params.id, req.params.lineaId);
+  conciliarLinea(ext, l, { pagoId: str(req.body.pagoId), comprobanteId: str(req.body.comprobanteId) });
+  res.json({ ok: true });
+});
+/** El ingreso no tenía cobro cargado: se registra el cobro por transferencia a partir del movimiento. */
+adm.post("/conciliacion/extractos/:id/lineas/:lineaId/cobrar", (req, res) => {
+  const { ext, l } = buscarLinea(req.params.id, req.params.lineaId);
+  if (l.estado === "conciliada" || l.importe <= 0) rechazar("Ese movimiento no se puede cobrar");
+  const p = registrarPago({
+    responsableId: str(req.body.responsableId), fecha: l.fecha, medio: "transferencia", importe: l.importe,
+    cargoIds: Array.isArray(req.body.cargoIds) ? req.body.cargoIds.map(String) : [], observacion: `Registrado desde el extracto bancario${l.descripcion ? ` · ${l.descripcion}` : ""}`, referencia: l.referencia,
+  });
+  vincular(ext, l, p);
+  res.json(vistaPago(p));
+});
+adm.post("/conciliacion/extractos/:id/lineas/:lineaId/ignorar", (req, res) => {
+  const { l } = buscarLinea(req.params.id, req.params.lineaId);
+  if (l.estado === "conciliada") rechazar("Está conciliado: deshacelo primero");
+  l.estado = req.body.ignorar === false ? "pendiente" : "ignorada";
+  res.json({ ok: true });
+});
+adm.post("/conciliacion/extractos/:id/lineas/:lineaId/deshacer", (req, res) => {
+  const { ext, l } = buscarLinea(req.params.id, req.params.lineaId);
+  if (l.estado !== "conciliada") rechazar("Ese movimiento no está conciliado");
+  deshacer(ext, l);
+  res.json({ ok: true });
+});
+/** Concilia de una vez todos los movimientos que tienen una única coincidencia clara. */
+adm.post("/conciliacion/extractos/:id/confirmar-sugeridas", (req, res) => {
+  const ext = getDB().extractos.find((x) => x.id === req.params.id);
+  if (!ext) return rechazar("Extracto inexistente");
+  const usados = new Set<string>();
+  let n = 0;
+  for (const l of ext.lineas.filter((x) => x.estado === "pendiente" && x.importe > 0)) {
+    const s = sugerencia(candidatosPara(l).filter((c) => !usados.has(c.id)));
+    if (!s) continue;
+    usados.add(s.id);
+    conciliarLinea(ext, l, s.tipo === "pago" ? { pagoId: s.id } : { comprobanteId: s.id });
+    n++;
+  }
+  res.json({ conciliadas: n });
+});
+/** Cobros por banco, tarjeta o cheque que todavía no aparecen en ningún extracto. */
+adm.get("/conciliacion/sin-conciliar", (_req, res) => {
+  res.json(getDB().pagos.filter((p) => !p.anulado && !p.conciliado && p.medio !== "efectivo" && p.cuentaCaja !== CTA.anticipos).sort((a, b) => b.fecha.localeCompare(a.fecha)).map((p) => ({ ...vistaPago(p), referencia: p.referencia ?? "" })));
+});
 
 adm.get("/comprobantes", (req, res) => {
   const estado = str(req.query.estado);
@@ -499,7 +720,7 @@ adm.post("/ajustes/clave", (req, res) => {
 adm.post("/ajustes/limpiar-datos", asinc(async (req, res) => {
   if (str(req.body.confirmar) !== "BORRAR") rechazar('Escribí BORRAR para confirmar');
   const d = getDB();
-  Object.assign(d, { responsables: [], alumnos: [], cargos: [], pagos: [], comprobantes: [], gastos: [], asientos: [], contadores: {}, demo: false });
+  Object.assign(d, { responsables: [], alumnos: [], cargos: [], pagos: [], comprobantes: [], eventos: [], extractos: [], gastos: [], asientos: [], contadores: {}, demo: false });
   await borrarArchivos();
   res.json({ ok: true });
 }));

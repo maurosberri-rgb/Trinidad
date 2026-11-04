@@ -7,6 +7,7 @@ import { CambiarTema, Campo, Cargando, ErrorBox, Icon, Logo, Modal, useCarga } f
 export interface CargoF {
   id: string; numero: string; descripcion: string; periodo: string; vencimiento: string; importe: number; descuento: number; bruto: number;
   pagado: number; pendiente: number; estado: "pendiente" | "parcial" | "vencido" | "pagado"; alumno: string; alumnoId: string; enRevision: boolean;
+  evento: { id: string; nombre: string; fechaEvento: string; descripcion: string } | null;
 }
 export interface PagoF { id: string; numero: string; fecha: string; medio: string; importe: number; aFavor: number; detalle: { monto: number; descripcion: string; alumno: string }[] }
 export interface ComprobanteF {

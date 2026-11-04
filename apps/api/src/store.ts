@@ -26,11 +26,26 @@ export interface Cargo {
   id: string; numero: string; alumnoId: string; responsableId: string; conceptoId: string; descripcion: string;
   periodo: string; emision: string; vencimiento: string; bruto: number; descuento: number; importe: number;
   pagado: number; anulado: boolean; cuenta: string; asientoId: string;
+  /** Si el cargo pertenece a un evento (viaje, campamento…). */
+  eventoId?: string;
 }
+/** Cobro eventual: un viaje de estudio, campamento, salida, etc. Genera cargos (en una o varias cuotas) para los alumnos que participan. */
+export interface Evento {
+  id: string; nombre: string; descripcion: string; fechaEvento: string; importe: number; cuotas: number; primerVencimiento: string;
+  cuenta: string; alumnoIds: string[]; creado: string; cerrado: boolean;
+}
+export type MedioPago = "efectivo" | "transferencia" | "cheque" | "tarjeta_debito" | "tarjeta_credito" | "deposito" | "mercadopago" | "otro";
+/** Movimiento de un extracto bancario; el importe es positivo si es un ingreso al banco. */
+export interface LineaBanco { id: string; fecha: string; descripcion: string; referencia: string; importe: number; saldo: number | null; estado: "pendiente" | "conciliada" | "ignorada"; pagoId?: string }
+export interface Extracto { id: string; nombre: string; creado: string; desde: string; hasta: string; lineas: LineaBanco[] }
 export interface Imputacion { cargoId: string; monto: number }
 export interface Pago {
-  id: string; numero: string; fecha: string; responsableId: string; medio: "efectivo" | "transferencia" | "otro";
+  id: string; numero: string; fecha: string; responsableId: string; medio: MedioPago;
   cuentaCaja: string; importe: number; imputaciones: Imputacion[]; aFavor: number; comprobanteId?: string;
+  /** N° de cheque, cupón de tarjeta, operación bancaria, etc. */
+  referencia?: string;
+  /** Si el cobro ya se cruzó con un movimiento del extracto bancario. */
+  conciliado?: { extractoId: string; lineaId: string; asientoId?: string };
   observacion: string; anulado: boolean; asientoId: string;
 }
 export interface Comprobante {
@@ -64,6 +79,8 @@ export interface DB {
   cargos: Cargo[];
   pagos: Pago[];
   comprobantes: Comprobante[];
+  eventos: Evento[];
+  extractos: Extracto[];
   gastos: Gasto[];
   asientos: Asiento[];
   contadores: Record<string, number>;
@@ -136,6 +153,9 @@ export async function iniciarDB(inicial: () => DB): Promise<boolean> {
     if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, "utf8")) as DB;
     else { db = inicial(); nueva = true; }
   }
+  // Bases creadas antes de existir los eventos
+  db!.eventos ??= [];
+  db!.extractos ??= [];
   return nueva;
 }
 

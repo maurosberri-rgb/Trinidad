@@ -1,20 +1,51 @@
 import { useState } from "react";
 import { api, mensajeError } from "../../lib/api";
-import { dni as fmtDni, fecha, pesos } from "../../lib/format";
+import { dni as fmtDni, fecha, nombreMedio, pesos } from "../../lib/format";
 import RegistrarPago, { type PagoAdm } from "../../components/RegistrarPago";
-import { Cabecera, Cargando, ErrorBox, Icon, Pestanas, Vacio, useCarga } from "../../components/ui";
+import { Cabecera, Cargando, Chip, ErrorBox, Icon, Modal, Pestanas, Vacio, useCarga } from "../../components/ui";
 import type { RespAdm } from "./Familias";
 
-const MEDIO: Record<string, string> = { efectivo: "Efectivo", transferencia: "Transferencia", otro: "Otro" };
 
 export default function Cobranza() {
   const [tab, setTab] = useState<"deuda" | "recibos">("deuda");
+  const [nuevo, setNuevo] = useState(false);
   return (
     <>
-      <Cabecera titulo="Cobranza" subtitulo="Registrá cobros en ventanilla y controlá la deuda de cada familia." />
+      <Cabecera titulo="Cobranza" subtitulo="Registrá cobros en ventanilla (efectivo, cheque, tarjeta, transferencia…) y controlá la deuda de cada familia.">
+        <button className="btn-primary" onClick={() => setNuevo(true)}><Icon name="mas" size={16} />Nuevo cobro</button>
+      </Cabecera>
+      {nuevo && <ElegirFamilia onClose={() => setNuevo(false)} />}
       <Pestanas valor={tab} onChange={setTab} opciones={[{ id: "deuda", texto: "Deuda por familia" }, { id: "recibos", texto: "Recibos emitidos" }]} />
       {tab === "deuda" ? <Deuda /> : <Recibos />}
     </>
+  );
+}
+
+/** Cobro presencial: se busca la familia por apellido, DNI o alumno y se abre el formulario de cobro. */
+function ElegirFamilia({ onClose }: { onClose: () => void }) {
+  const { data, error } = useCarga(() => api<RespAdm[]>("/admin/responsables"));
+  const [q, setQ] = useState("");
+  const [familia, setFamilia] = useState<string | null>(null);
+  if (familia) return <RegistrarPago responsableId={familia} onClose={onClose} onListo={() => { onClose(); window.location.reload(); }} />;
+  const lista = (data ?? []).filter((r) => r.activo && `${r.apellido} ${r.nombre} ${r.dni} ${r.alumnos.join(" ")}`.toLowerCase().includes(q.toLowerCase())).slice(0, 30);
+  return (
+    <Modal titulo="Nuevo cobro · ¿de qué familia?" onClose={onClose} ancho="max-w-xl">
+      <input className="input" autoFocus placeholder="Buscar por apellido, DNI o alumno" value={q} onChange={(e) => setQ(e.target.value)} />
+      <ErrorBox error={error} />
+      {!data ? <Cargando /> : (
+        <ul className="mt-3 max-h-80 overflow-y-auto rounded-xl border border-borde">
+          {lista.map((r) => (
+            <li key={r.id} className="border-b border-borde/70 last:border-0">
+              <button className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-fondo/60" onClick={() => setFamilia(r.id)}>
+                <span className="min-w-0"><span className="block font-medium">{r.apellido}, {r.nombre} <span className="font-normal text-tenue">· {fmtDni(r.dni)}</span></span><span className="block truncate text-xs text-tenue">{r.alumnos.join(" · ")}</span></span>
+                <span className={`tabular-nums ${r.deuda > 0 ? "font-semibold" : "text-tenue"}`}>{r.deuda > 0 ? pesos(r.deuda) : "Al día"}</span>
+              </button>
+            </li>
+          ))}
+          {lista.length === 0 && <li className="px-4 py-6 text-center text-sm text-tenue">No se encontraron familias.</li>}
+        </ul>
+      )}
+    </Modal>
   );
 }
 
@@ -82,7 +113,7 @@ function Recibos() {
               {data.map((p) => (
                 <tr key={p.id} className={p.anulado ? "text-tenue" : ""}>
                   <td className={`font-medium ${p.anulado ? "line-through" : ""}`}>{p.numero}</td>
-                  <td>{fecha(p.fecha)}</td><td>{p.responsable}</td><td>{MEDIO[p.medio]}</td>
+                  <td>{fecha(p.fecha)}</td><td>{p.responsable}</td><td>{nombreMedio(p.medio)}{p.referencia ? <span className="block text-xs text-tenue">{p.referencia}</span> : null}{p.conciliado && <Chip clase="mt-1 bg-ok-claro text-ok">Conciliado</Chip>}</td>
                   <td className="max-w-xs truncate text-suave" title={p.detalle.map((d) => d.descripcion).join(", ")}>{p.detalle.map((d) => d.descripcion).join(", ") || "Saldo a favor"}</td>
                   <td className="num font-medium">{pesos(p.importe)}</td>
                   <td className="num">{p.anulado ? <span className="text-xs">Anulado</span> : <button className="text-xs text-peligro hover:underline" onClick={() => anular(p)}>Anular</button>}</td>

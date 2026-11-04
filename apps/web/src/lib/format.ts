@@ -13,6 +13,19 @@ export const MESES_CORTOS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "A
 export const dni = (v: string) => v.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 export const sumar = (l: number[]) => Math.round(l.reduce((s, x) => s + x, 0) * 100) / 100;
 
+/** Medios de pago aceptados en ventanilla; «ayuda» es lo que se pide anotar como referencia. */
+export const MEDIOS: Record<string, { texto: string; ayuda: string }> = {
+  efectivo: { texto: "Efectivo", ayuda: "" },
+  transferencia: { texto: "Transferencia", ayuda: "N° de operación" },
+  cheque: { texto: "Cheque", ayuda: "N° de cheque y banco" },
+  tarjeta_debito: { texto: "Tarjeta de débito", ayuda: "N° de cupón o lote" },
+  tarjeta_credito: { texto: "Tarjeta de crédito", ayuda: "N° de cupón y cuotas" },
+  deposito: { texto: "Depósito bancario", ayuda: "N° de boleta" },
+  mercadopago: { texto: "Mercado Pago / QR", ayuda: "N° de operación" },
+  otro: { texto: "Otro", ayuda: "Referencia" },
+};
+export const nombreMedio = (m: string) => MEDIOS[m]?.texto ?? m;
+
 export const ESTADO_CARGO: Record<string, { texto: string; clase: string }> = {
   pendiente: { texto: "Pendiente", clase: "bg-marca-claro text-marca" },
   parcial: { texto: "Pago parcial", clase: "bg-aviso-claro text-aviso" },

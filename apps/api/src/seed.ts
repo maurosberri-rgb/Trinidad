@@ -15,6 +15,7 @@ export const PLAN_BASE: Cuenta[] = [
   c("1.1.01", "Caja", "Activo"),
   c("1.1.02", "Banco cuenta corriente", "Activo"),
   c("1.1.03", "Cuotas y servicios a cobrar", "Activo"),
+  c("1.1.04", "Valores a depositar (cheques y tarjetas)", "Activo"),
   c("2", "PASIVO", "Pasivo", false),
   c("2.1", "Pasivo corriente", "Pasivo", false),
   c("2.1.01", "Proveedores", "Pasivo"),
@@ -65,7 +66,7 @@ export function vacia(): DB {
     admins: [{ id: uid(), usuario: "admin", nombre: "Administración", claveHash: hashClave(process.env.ADMIN_PASSWORD || "admin") }],
     cuentas: PLAN_BASE.map((x) => ({ ...x })),
     conceptos: CONCEPTOS_BASE.map((x) => ({ ...x, id: uid() })),
-    responsables: [], alumnos: [], cargos: [], pagos: [], comprobantes: [], gastos: [], asientos: [],
+    responsables: [], alumnos: [], cargos: [], pagos: [], comprobantes: [], eventos: [], extractos: [], gastos: [], asientos: [],
     contadores: {}, demo: false,
   };
 }
@@ -133,6 +134,9 @@ export function cargarDemo() {
 
 export async function iniciar(): Promise<DB> {
   const nueva = await iniciarDB(vacia);
+  // Bases anteriores: se agrega la cuenta para cheques y tarjetas a depositar
+  const plan = getDB().cuentas;
+  if (!plan.some((x) => x.codigo === "1.1.04")) plan.push(c("1.1.04", "Valores a depositar (cheques y tarjetas)", "Activo"));
   // Los datos de ejemplo se cargan solo la primera vez (base recién creada) y nunca en producción (SIN_DEMO=1).
   if (nueva && process.env.SIN_DEMO !== "1") cargarDemo();
   if (nueva) await guardarAhora();

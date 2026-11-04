@@ -9,7 +9,7 @@ const ESTADO = {
   rechazado: { t: "Rechazado", c: "bg-peligro-claro text-peligro" },
 } as const;
 
-const MEDIO: Record<string, string> = { efectivo: "Efectivo", transferencia: "Transferencia", otro: "Otro" };
+import { nombreMedio } from "../../lib/format";
 
 export default function Historial() {
   const { datos } = useOutletContext<CtxFamilia>();
@@ -48,7 +48,7 @@ export default function Historial() {
               {datos.pagos.map((p) => (
                 <li key={p.id} className="border-b border-borde/70 px-5 py-4 last:border-0">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium">Recibo {p.numero} <span className="font-normal text-tenue">· {fecha(p.fecha)} · {MEDIO[p.medio]}</span></p>
+                    <p className="text-sm font-medium">Recibo {p.numero} <span className="font-normal text-tenue">· {fecha(p.fecha)} · {nombreMedio(p.medio)}</span></p>
                     <p className="text-sm font-semibold tabular-nums">{pesos(p.importe)}</p>
                   </div>
                   <ul className="mt-1.5 space-y-0.5 text-xs text-tenue">

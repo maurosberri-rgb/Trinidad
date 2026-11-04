@@ -20,6 +20,7 @@ const RUTAS: Record<string, ReactNode> = {
   sol: <><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4" /></>,
   luna: <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" />,
   ok: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  eventos: <><path d="M5 21V4" /><path d="M5 4h12l-2.5 4L17 12H5" /></>,
   cerrar: <path d="M6 6l12 12M18 6 6 18" />,
   mas: <path d="M12 5v14M5 12h14" />,
   buscar: <><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4-4" /></>,
