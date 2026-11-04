@@ -22,48 +22,33 @@ export default function AdminLayout() {
   const { salir, sesion } = useAuth();
   const nav = useNavigate();
   const [abierto, setAbierto] = useState(false);
-  // Menú lateral contraído (solo íconos) en pantallas anchas; se recuerda la elección.
-  const [compacto, setCompacto] = useState(() => { try { return localStorage.getItem("trinidad.menu") === "compacto"; } catch { return false; } });
-  const alternar = () => setCompacto((c) => { const n = !c; try { localStorage.setItem("trinidad.menu", n ? "compacto" : "completo"); } catch { /* sin almacenamiento */ } return n; });
   const { pathname } = useLocation();
   // Se vuelve a consultar al cambiar de pantalla para que la insignia de comprobantes esté al día.
   const pend = useCarga(() => api<{ comprobantesPendientes: number }>("/admin/resumen"), [pathname]);
   const cuantos = pend.data?.comprobantesPendientes ?? 0;
 
-  const menuDe = (chico: boolean) => (
+  const menu = (
     <nav className="flex flex-1 flex-col gap-0.5 px-3">
       {MENU.map((m) => (
-        <NavLink key={m.a} to={m.a} end={m.fin} onClick={() => setAbierto(false)} title={chico ? m.t : undefined} aria-label={m.t}
-          className={({ isActive }) => `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${chico ? "justify-center" : ""} ${isActive ? "bg-marca text-white shadow-suave" : "text-suave hover:bg-marca-claro hover:text-marca"}`}>
+        <NavLink key={m.a} to={m.a} end={m.fin} onClick={() => setAbierto(false)}
+          className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive ? "bg-marca text-white shadow-suave" : "text-suave hover:bg-marca-claro hover:text-marca"}`}>
           <Icon name={m.i} />
-          {!chico && <span className="flex-1">{m.t}</span>}
-          {m.insignia && cuantos > 0 && <span className={`rounded-full bg-peligro px-2 py-0.5 text-[11px] font-semibold text-white ${chico ? "absolute right-1 top-0.5 px-1.5 py-0 text-[10px]" : ""}`}>{cuantos}</span>}
+          <span className="flex-1">{m.t}</span>
+          {m.insignia && cuantos > 0 && <span className="rounded-full bg-peligro px-2 py-0.5 text-[11px] font-semibold text-white">{cuantos}</span>}
         </NavLink>
       ))}
     </nav>
   );
 
-  const menu = menuDe(false);
-
   return (
-    <div className={`min-h-screen lg:grid ${compacto ? "lg:grid-cols-[76px_1fr]" : "lg:grid-cols-[250px_1fr]"}`}>
+    <div className="min-h-screen lg:grid lg:grid-cols-[250px_1fr]">
       <aside className="no-imprimir sticky top-0 hidden h-screen flex-col border-r border-borde bg-sup pb-5 lg:flex"><span className="franja mb-5 block h-1.5" aria-hidden />
-        <div className={`mb-6 flex items-center ${compacto ? "justify-center" : "justify-between px-5"}`}>
-          {!compacto && <Logo />}
-          <button onClick={alternar} className="rounded-lg p-2 text-suave hover:bg-fondo hover:text-tinta" aria-label={compacto ? "Expandir menú" : "Contraer menú"} title={compacto ? "Expandir menú" : "Contraer menú"}><Icon name="menu" size={22} /></button>
+        <div className="mb-6 px-5"><Logo /></div>
+        {menu}
+        <div className="mt-4 border-t border-borde px-5 pt-4">
+          <p className="truncate text-xs text-tenue">{sesion?.nombre}</p>
+          <div className="mt-2 flex items-center justify-between"><button className="flex items-center gap-2 text-sm text-suave hover:text-tinta" onClick={() => { salir(); nav("/"); }}><Icon name="salir" size={16} />Cerrar sesión</button><CambiarTema /></div>
         </div>
-        {menuDe(compacto)}
-        {compacto ? (
-          <div className="mt-4 flex flex-col items-center gap-2 border-t border-borde pt-4">
-            <CambiarTema />
-            <button className="rounded-lg p-2 text-suave hover:bg-fondo hover:text-tinta" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={() => { salir(); nav("/"); }}><Icon name="salir" size={18} /></button>
-          </div>
-        ) : (
-          <div className="mt-4 border-t border-borde px-5 pt-4">
-            <p className="truncate text-xs text-tenue">{sesion?.nombre}</p>
-            <div className="mt-2 flex items-center justify-between"><button className="flex items-center gap-2 text-sm text-suave hover:text-tinta" onClick={() => { salir(); nav("/"); }}><Icon name="salir" size={16} />Cerrar sesión</button><CambiarTema /></div>
-          </div>
-        )}
       </aside>
 
       <div className="no-imprimir sticky top-0 z-30 flex items-center justify-between border-b border-borde bg-sup/95 px-4 py-3 backdrop-blur lg:hidden">
