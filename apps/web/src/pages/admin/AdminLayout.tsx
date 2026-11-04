@@ -32,7 +32,7 @@ export default function AdminLayout() {
           className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive ? "bg-marca-claro text-marca" : "text-suave hover:bg-fondo hover:text-tinta"}`}>
           <Icon name={m.i} />
           <span className="flex-1">{m.t}</span>
-          {m.insignia && cuantos > 0 && <span className="rounded-full bg-oro px-2 py-0.5 text-[11px] font-semibold text-white">{cuantos}</span>}
+          {m.insignia && cuantos > 0 && <span className="rounded-full bg-peligro px-2 py-0.5 text-[11px] font-semibold text-white">{cuantos}</span>}
         </NavLink>
       ))}
     </nav>

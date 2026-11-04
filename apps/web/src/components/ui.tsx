@@ -39,26 +39,20 @@ export function Icon({ name, size = 18, className = "" }: { name: keyof typeof R
 }
 
 // ---------- Marca ----------
-export function Trebol({ size = 40, claro = false }: { size?: number; claro?: boolean }) {
-  const trazo = claro ? "#e7c873" : "#b88e30";
-  return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" aria-hidden>
-      <rect width="64" height="64" rx="15" fill={claro ? "rgba(255,255,255,.1)" : "#1f3a68"} />
-      <g stroke={claro ? "#e7c873" : "#e7c873"} strokeWidth="3" opacity={claro ? 1 : 1}>
-        <circle cx="32" cy="23" r="11" /><circle cx="23" cy="38" r="11" /><circle cx="41" cy="38" r="11" />
-      </g>
-      <circle cx="32" cy="33" r="1.8" fill={trazo} />
-    </svg>
-  );
+/** Escudo del colegio. El JPG tiene fondo blanco: `mix-blend-multiply` lo hace desaparecer sobre fondos claros. */
+export function Escudo({ className = "h-10" }: { className?: string }) {
+  return <img src="/logo.jpg" alt="Escudo del Instituto La Sma. Trinidad" className={`w-auto select-none mix-blend-multiply ${className}`} draggable={false} />;
 }
 
-export function Logo({ nombre = "Instituto Santísima Trinidad", centrado = false }: { nombre?: string; centrado?: boolean }) {
+/** Marca compacta (escudo + nombre) para encabezados y menú. */
+export function Logo() {
   return (
-    <div className={`flex items-center gap-3 ${centrado ? "flex-col text-center" : ""}`}>
-      <Trebol size={centrado ? 56 : 38} />
+    <div className="flex items-center gap-3">
+      <Escudo className="h-11" />
       <div className="leading-tight">
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-tenue">Instituto</p>
-        <p className={`font-semibold text-marca ${centrado ? "text-xl" : "text-[15px]"}`}>{nombre.replace(/^Instituto\s+/i, "")}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-peligro">Instituto</p>
+        <p className="text-[15px] font-semibold text-marca">La Sma. Trinidad</p>
+        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-tenue">Hernando</p>
       </div>
     </div>
   );

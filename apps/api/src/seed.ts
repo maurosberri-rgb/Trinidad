@@ -59,8 +59,8 @@ export function vacia(): DB {
   return {
     secreto: crypto.randomBytes(32).toString("hex"),
     ajustes: {
-      colegio: "Instituto Santísima Trinidad", cuit: "", direccion: "", telefono: "", email: "",
-      banco: "", titular: "Instituto Santísima Trinidad", cbu: "", alias: "", diaVencimiento: 10, cicloLectivo: anio,
+      colegio: "Instituto La Sma. Trinidad", cuit: "", direccion: "", telefono: "", email: "",
+      banco: "", titular: "Instituto La Sma. Trinidad", cbu: "", alias: "", diaVencimiento: 10, cicloLectivo: anio,
     },
     admins: [{ id: uid(), usuario: "admin", nombre: "Administración", claveHash: hashClave(process.env.ADMIN_PASSWORD || "admin") }],
     cuentas: PLAN_BASE.map((x) => ({ ...x })),

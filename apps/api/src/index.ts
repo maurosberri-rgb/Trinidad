@@ -526,6 +526,7 @@ if (fs.existsSync(dist)) {
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof Rechazo) return res.status(400).json({ error: err.message });
   if (err.message?.startsWith("El asiento") || err.message?.startsWith("Un asiento")) return res.status(400).json({ error: err.message });
+  if ((err as { type?: string }).type === "entity.parse.failed") return res.status(400).json({ error: "La solicitud no es válida" });
   if ((err as { type?: string }).type === "entity.too.large") return res.status(413).json({ error: "El archivo es demasiado grande" });
   if (/^(Responsable|Cargo|Recibo|El cargo|El recibo|No hay saldo|El saldo|El importe)/.test(err.message)) return res.status(400).json({ error: err.message });
   console.error(err);

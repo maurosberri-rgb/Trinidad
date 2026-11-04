@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { mensajeError } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { ErrorBox, Icon, Logo, Campo } from "../components/ui";
+import { Campo, ErrorBox, Escudo, Icon } from "../components/ui";
 
 type Modo = "familia" | "colegio";
 
@@ -45,22 +45,28 @@ export default function Ingresar() {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.9fr_1fr]">
       {/* Arte de la marca (solo en pantallas anchas) */}
-      <aside className="relative hidden overflow-hidden bg-marca lg:sticky lg:top-0 lg:block lg:h-screen">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#2a4d8a] via-marca to-[#14274a]" aria-hidden />
-        <svg className="absolute -right-32 top-1/2 h-[135%] -translate-y-1/2 opacity-[0.16]" viewBox="0 0 400 400" fill="none" stroke="#e7c873" strokeWidth="1.6" aria-hidden>
-          <circle cx="200" cy="140" r="110" /><circle cx="140" cy="240" r="110" /><circle cx="260" cy="240" r="110" />
-          <circle cx="200" cy="140" r="150" strokeDasharray="2 7" /><circle cx="140" cy="240" r="150" strokeDasharray="2 7" /><circle cx="260" cy="240" r="150" strokeDasharray="2 7" />
-        </svg>
-        <div className="absolute inset-x-14 bottom-14 text-white">
-          <p className="text-xs font-medium uppercase tracking-[0.24em] text-oro-claro/80">Portal de familias</p>
-          <p className="mt-3 max-w-md text-4xl font-semibold leading-tight">Tus cuotas, claras y al alcance de un clic.</p>
-          <p className="mt-4 max-w-sm text-sm text-white/70">Consultá lo que tenés pendiente, informá tu transferencia y seguí el estado de cada pago.</p>
+      <aside className="relative hidden overflow-hidden bg-[#eef4fd] lg:sticky lg:top-0 lg:block lg:h-screen">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-[#eef4fd] to-[#d6e5fb]" aria-hidden />
+        {/* Círculos suaves con los colores del escudo */}
+        <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-[#00a0f0]/10" aria-hidden />
+        <div className="absolute -bottom-32 -right-20 h-[520px] w-[520px] rounded-full bg-marca/[0.07]" aria-hidden />
+        <div className="absolute right-40 top-[58%] h-20 w-20 rounded-full bg-oro/25" aria-hidden />
+        <div className="absolute right-24 top-20 h-10 w-10 rounded-full bg-peligro/15" aria-hidden />
+        <div className="absolute inset-0 flex items-center justify-center pb-40">
+          <Escudo className="h-[46vh] max-h-[460px]" />
+        </div>
+        <div className="absolute inset-x-14 bottom-14">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-peligro">Portal de familias</p>
+          <p className="mt-3 max-w-md text-4xl font-semibold leading-tight text-marca">Tus cuotas, claras y al alcance de un clic.</p>
+          <p className="mt-3 max-w-sm text-sm text-suave">Consultá lo que tenés pendiente, informá tu transferencia y seguí el estado de cada pago.</p>
         </div>
       </aside>
 
       <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-8">
         <div className="w-full max-w-sm">
-          <div className="mb-8 flex justify-center"><Logo centrado /></div>
+          {/* En pantallas angostas no hay panel de arte: el escudo se muestra acá */}
+          <div className="mb-6 flex flex-col items-center text-center lg:hidden"><Escudo className="h-28" /></div>
+          <p className="mb-6 hidden text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-tenue lg:block">Instituto La Sma. Trinidad · Hernando</p>
           <div className="card p-6 shadow-flota sm:p-8">
             <div className="mb-6 flex rounded-xl bg-fondo p-1" role="tablist">
               {([["familia", "Familias"], ["colegio", "Colegio"]] as const).map(([m, t]) => (
