@@ -10,7 +10,7 @@ const MENU = [
   { a: "/admin/familias", t: "Familias", i: "familias" },
   { a: "/admin/cobranza", t: "Cobranza", i: "cobranza" },
   { a: "/admin/gastos", t: "Gastos", i: "gastos" },
-  { a: "/admin/arqueo", t: "Arqueo de caja", i: "cobranza" },
+  { a: "/admin/arqueo", t: "Arqueo de caja", i: "arqueo" },
   { a: "/admin/comprobantes", t: "Comprobantes", i: "comprobantes", insignia: true },
   { a: "/admin/cargos", t: "Cuotas y actividades", i: "cargos" },
   { a: "/admin/conciliacion", t: "Conciliación bancaria", i: "banco" },
